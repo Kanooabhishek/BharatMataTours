@@ -1642,7 +1642,7 @@ function destinationCard(destination) {
   const copy = local(destination);
   const gallery = destinationGalleries[destination.id] || [destination.image, images.tajMahal, images.keralaBackwater, images.boudhanath, images.gangaAartiVaranasi];
   return `
-    <article class="destination-card">
+    <article class="destination-card" data-card-link="#destination-${destination.id}" tabindex="0" role="link" aria-label="${escapeHtml(t("common.view"))}: ${escapeHtml(copy.title)}">
       ${imageCarousel(gallery, copy.title)}
       <div class="content">
         <div class="tag-row">
@@ -1967,7 +1967,7 @@ function destinationDetailPage(id) {
 function packageCard(pkg) {
   const copy = local(pkg);
   return `
-    <article class="package-card" data-package="${pkg.id}">
+    <article class="package-card" data-package="${pkg.id}" data-card-link="#package-${pkg.id}" tabindex="0" role="link" aria-label="${escapeHtml(t("common.view"))}: ${escapeHtml(copy.title)}">
       ${imageCarousel(packageGallery(pkg), copy.title)}
       <div class="content">
         <div class="tag-row">
@@ -2989,6 +2989,30 @@ function triggerPageFade() {
   app.classList.add("is-entering");
 }
 
+function bindCardLinks(scope = document) {
+  scope.querySelectorAll("[data-card-link]").forEach((card) => {
+    if (card.dataset.cardBound === "true") return;
+    card.dataset.cardBound = "true";
+    const navigate = () => {
+      const target = card.dataset.cardLink;
+      if (!target) return;
+      window.location.hash = target.replace(/^#/, "");
+    };
+
+    card.addEventListener("click", (event) => {
+      if (event.target.closest("a, button, input, select, textarea, label, summary")) return;
+      navigate();
+    });
+
+    card.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      if (event.target.closest("a, button, input, select, textarea, label, summary")) return;
+      event.preventDefault();
+      navigate();
+    });
+  });
+}
+
 function updatePackageGrid() {
   const grid = document.querySelector("[data-package-grid]");
   const countNode = document.querySelector("[data-filter-count]");
@@ -3005,6 +3029,7 @@ function updatePackageGrid() {
     void summary.offsetWidth;
     summary.classList.add("is-flash");
   }
+  bindCardLinks(grid);
   document.querySelectorAll("[data-package-grid] [data-plan-package]").forEach((node) => {
     node.addEventListener("click", () => {
       state.trip.packageId = node.dataset.planPackage;
@@ -3022,6 +3047,8 @@ function highlightNav(route) {
 }
 
 function bindDynamicEvents() {
+  bindCardLinks();
+
   document.querySelectorAll("[data-plan-package]").forEach((node) => {
     node.addEventListener("click", () => {
       state.trip.packageId = node.dataset.planPackage;

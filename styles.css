@@ -938,6 +938,17 @@ a.month-item::after {
   overflow: hidden;
 }
 
+.destination-card[data-card-link],
+.package-card[data-card-link] {
+  cursor: pointer;
+}
+
+.destination-card[data-card-link]:focus-visible,
+.package-card[data-card-link]:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.4);
+  outline-offset: 4px;
+}
+
 .destination-card img,
 .package-card img,
 .image-card img {

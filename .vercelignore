@@ -1,0 +1,7 @@
+Webpage images/
+screenshots/
+tmp/
+output/
+test-results/
+.DS_Store
+*.log

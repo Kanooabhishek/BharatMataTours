@@ -1,0 +1,9 @@
+.vercel/
+Webpage images/
+screenshots/
+tmp/
+output/
+test-results/
+node_modules/
+.DS_Store
+*.log

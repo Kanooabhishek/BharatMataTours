@@ -1841,6 +1841,42 @@ function packagesForDestination(destination) {
   });
 }
 
+function destinationForPackage(pkg) {
+  return destinations.find((destination) => packagesForDestination(destination).some((item) => item.id === pkg.id)) || null;
+}
+
+function packageStylePreference(pkg, isNl) {
+  const styles = {
+    culture: isNl ? "Cultuur en erfgoed" : "Culture and heritage",
+    heritage: isNl ? "Cultuur en erfgoed" : "Culture and heritage",
+    spirituality: isNl ? "Spiritualiteit en festivals" : "Spirituality and festivals",
+    wellness: isNl ? "Backwaters en hill stations" : "Backwaters and hill stations",
+    leisure: isNl ? "Strand en stadsbeleving" : "Beach and city experience",
+    nature: isNl ? "Rustig comforttempo" : "Calm comfort pace",
+  };
+  return styles[pkg.theme] || (isNl ? "Rustig comforttempo" : "Calm comfort pace");
+}
+
+function prefillPlannerFromPackage(pkg) {
+  const isNl = state.lang === "nl";
+  const destination = destinationForPackage(pkg);
+  const packageTitle = local(pkg).title;
+  state.trip = {
+    ...state.trip,
+    packageId: pkg.id,
+    packageInterest: pkg.id,
+    budget: pkg.budget,
+    destinationId: destination?.id || state.trip.destinationId || "",
+    destinationInterest: destination?.id || state.trip.destinationInterest || "",
+    style: packageStylePreference(pkg, isNl),
+    accommodation: pkg.budget === "premium" ? "Premium" : "Comfort",
+    message: isNl
+      ? `Ik wil graag teruggebeld worden over ${packageTitle}.`
+      : `I would like to request a callback about ${packageTitle}.`,
+  };
+  state.plannerStep = "inquiry";
+}
+
 function destinationWhyParagraphs(destination, copy, isNl) {
   const sights = copy.sights.slice(0, 4).join(", ");
   if (isNl) {
@@ -2345,7 +2381,7 @@ function packageDetailPage(id) {
         <span class="hero-price-amount">${perPersonPrice}</span>
       </div>
       <div class="hero-cta-buttons">
-        <button type="button" class="hero-btn hero-btn-callback" data-hero-callback>
+        <button type="button" class="hero-btn hero-btn-callback" data-hero-callback="${pkg.id}">
           <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.49 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.4 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.68a16 16 0 0 0 6 6l.78-.78a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2z"/></svg>
           ${isNl ? "Terugbelverzoek" : "Request a Callback"}
         </button>
@@ -3166,7 +3202,8 @@ function bindDynamicEvents() {
   // ── Hero CTA buttons ────────────────────────────────────────────────────
   document.querySelectorAll("[data-hero-callback]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      // Scroll to the trip planner and pre-select callback intent
+      const pkg = packages.find((item) => item.id === btn.dataset.heroCallback);
+      if (pkg) prefillPlannerFromPackage(pkg);
       window.location.hash = "planner";
     });
   });

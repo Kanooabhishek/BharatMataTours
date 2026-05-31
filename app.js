@@ -1866,8 +1866,8 @@ function prefillPlannerFromPackage(pkg) {
     packageId: pkg.id,
     packageInterest: pkg.id,
     budget: pkg.budget,
-    destinationId: destination?.id || state.trip.destinationId || "",
-    destinationInterest: destination?.id || state.trip.destinationInterest || "",
+    destinationId: destination?.id || "",
+    destinationInterest: destination?.id || "",
     style: packageStylePreference(pkg, isNl),
     accommodation: pkg.budget === "premium" ? "Premium" : "Comfort",
     message: isNl
@@ -1875,6 +1875,17 @@ function prefillPlannerFromPackage(pkg) {
       : `I would like to request a callback about ${packageTitle}.`,
   };
   state.plannerStep = "inquiry";
+}
+
+function openPlannerForPackage(packageId) {
+  const pkg = packages.find((item) => item.id === packageId);
+  if (!pkg) return;
+  prefillPlannerFromPackage(pkg);
+  if (window.location.hash === "#planner") {
+    renderRoute();
+  } else {
+    window.location.hash = "planner";
+  }
 }
 
 function destinationWhyParagraphs(destination, copy, isNl) {
@@ -2668,8 +2679,10 @@ function contactPage() {
 
 function plannerPage() {
   const isNl = state.lang === "nl";
-  const selectedPackage = packages.find((pkg) => pkg.id === state.trip.packageId || pkg.id === state.trip.packageInterest);
-  const selectedDestination = destinations.find((dest) => dest.id === state.trip.destinationId || dest.id === state.trip.destinationInterest);
+  const selectedPackageId = state.trip.packageInterest || state.trip.packageId;
+  const selectedDestinationId = state.trip.destinationInterest || state.trip.destinationId;
+  const selectedPackage = packages.find((pkg) => pkg.id === selectedPackageId);
+  const selectedDestination = destinations.find((dest) => dest.id === selectedDestinationId);
   const heroGallery = selectedPackage
     ? packageGallery(selectedPackage)
     : selectedDestination
@@ -2728,11 +2741,13 @@ function plannerPage() {
 
 function inquiryStep(selectedPackage, selectedDestination) {
   const isNl = state.lang === "nl";
+  const selectedPackageId = state.trip.packageInterest || state.trip.packageId;
+  const selectedDestinationId = state.trip.destinationInterest || state.trip.destinationId;
   const packageOptions = packages
-    .map((pkg) => `<option value="${pkg.id}" ${state.trip.packageId === pkg.id ? "selected" : ""}>${escapeHtml(local(pkg).title)}</option>`)
+    .map((pkg) => `<option value="${pkg.id}" ${selectedPackageId === pkg.id ? "selected" : ""}>${escapeHtml(local(pkg).title)}</option>`)
     .join("");
   const destinationOptions = destinations
-    .map((dest) => `<option value="${dest.id}" ${state.trip.destinationId === dest.id ? "selected" : ""}>${escapeHtml(local(dest).title)}</option>`)
+    .map((dest) => `<option value="${dest.id}" ${selectedDestinationId === dest.id ? "selected" : ""}>${escapeHtml(local(dest).title)}</option>`)
     .join("");
   return `
     <form class="form-panel" data-inquiry-form novalidate>
@@ -2749,7 +2764,7 @@ function inquiryStep(selectedPackage, selectedDestination) {
         ${field("phone", isNl ? "Telefoon / WhatsApp" : "Phone / WhatsApp", "tel", true)}
         ${field("country", isNl ? "Woonland" : "Country of residence", "text", true, isNl ? "Nederland" : "Netherlands")}
         ${field("dates", isNl ? "Gewenste reisdata" : "Preferred travel dates", "text", true, isNl ? "Bijv. oktober 2026" : "E.g. October 2026")}
-        ${field("travelers", isNl ? "Aantal reizigers" : "Number of travelers", "number", true, "", "1")}
+        ${travelerField(isNl)}
         <div class="field">
           <label for="budget">${isNl ? "Budgetrange" : "Budget range"}</label>
           <select id="budget" name="budget" required>
@@ -2825,6 +2840,21 @@ function field(name, label, type, required, placeholder = "", min = "") {
     <div class="field">
       <label for="${name}">${label}</label>
       <input id="${name}" name="${name}" type="${type}" ${required ? "required" : ""} ${placeholder ? `placeholder="${placeholder}"` : ""} ${min ? `min="${min}"` : ""} value="${value}" />
+      <span class="error"></span>
+    </div>
+  `;
+}
+
+function travelerField(isNl) {
+  const value = Math.max(Number(state.trip.travelers || 1), 1);
+  return `
+    <div class="field">
+      <label for="travelers">${isNl ? "Aantal reizigers" : "Number of travelers"}</label>
+      <div class="traveler-stepper" data-traveler-stepper>
+        <button type="button" class="stepper-button" data-traveler-step="-1" aria-label="${isNl ? "Verlaag aantal reizigers" : "Decrease traveler count"}">&minus;</button>
+        <input id="travelers" name="travelers" type="number" min="1" required value="${value}" inputmode="numeric" />
+        <button type="button" class="stepper-button" data-traveler-step="1" aria-label="${isNl ? "Verhoog aantal reizigers" : "Increase traveler count"}">+</button>
+      </div>
       <span class="error"></span>
     </div>
   `;
@@ -3067,10 +3097,9 @@ function updatePackageGrid() {
   }
   bindCardLinks(grid);
   document.querySelectorAll("[data-package-grid] [data-plan-package]").forEach((node) => {
-    node.addEventListener("click", () => {
-      state.trip.packageId = node.dataset.planPackage;
-      state.trip.packageInterest = node.dataset.planPackage;
-      state.plannerStep = "inquiry";
+    node.addEventListener("click", (event) => {
+      event.preventDefault();
+      openPlannerForPackage(node.dataset.planPackage);
     });
   });
 }
@@ -3086,10 +3115,9 @@ function bindDynamicEvents() {
   bindCardLinks();
 
   document.querySelectorAll("[data-plan-package]").forEach((node) => {
-    node.addEventListener("click", () => {
-      state.trip.packageId = node.dataset.planPackage;
-      state.trip.packageInterest = node.dataset.planPackage;
-      state.plannerStep = "inquiry";
+    node.addEventListener("click", (event) => {
+      event.preventDefault();
+      openPlannerForPackage(node.dataset.planPackage);
     });
   });
 
@@ -3142,6 +3170,17 @@ function bindDynamicEvents() {
     if (state.trip.accommodation) inquiryForm.elements.accommodation.value = state.trip.accommodation;
 
     attachLiveValidation(inquiryForm);
+    document.querySelectorAll("[data-traveler-step]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const input = button.closest("[data-traveler-stepper]")?.querySelector('input[name="travelers"]');
+        if (!input) return;
+        const delta = Number(button.dataset.travelerStep || 0);
+        const current = Math.max(Number(input.value || 1), 1);
+        input.value = Math.max(current + delta, 1);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    });
+
     inquiryForm.addEventListener("submit", (event) => {
       event.preventDefault();
       if (!validateForm(inquiryForm)) return;
@@ -3202,9 +3241,7 @@ function bindDynamicEvents() {
   // ── Hero CTA buttons ────────────────────────────────────────────────────
   document.querySelectorAll("[data-hero-callback]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const pkg = packages.find((item) => item.id === btn.dataset.heroCallback);
-      if (pkg) prefillPlannerFromPackage(pkg);
-      window.location.hash = "planner";
+      openPlannerForPackage(btn.dataset.heroCallback);
     });
   });
 
